@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres
+    container_name: leave-calendar-db
+    restart: always
+    environment:
+      POSTGRES_DB: leave_calendar_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5434:5432"
+    volumes:
+      - leave_calendar_postgres_data:/var/lib/postgresql
+
+volumes:
+  leave_calendar_postgres_data:

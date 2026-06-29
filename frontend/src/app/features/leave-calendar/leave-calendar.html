@@ -1,0 +1,411 @@
+<div class="page">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Team planning</p>
+      <h1>Leave Calendar & On-Call Rotation</h1>
+      <p class="subtitle">
+        Manage team leave requests and quickly spot on-call conflicts.
+      </p>
+    </div>
+
+    <div class="hero-stats">
+      <mat-card>
+        <mat-icon>event_available</mat-icon>
+        <strong>{{ approvedLeaves().length }}</strong>
+        <span>Approved leaves</span>
+      </mat-card>
+
+      <mat-card>
+        <mat-icon>hourglass_top</mat-icon>
+        <strong>{{ pendingLeaves().length }}</strong>
+        <span>Pending leaves</span>
+      </mat-card>
+
+      <mat-card [class.conflict-card]="conflicts().length > 0">
+        <mat-icon>warning</mat-icon>
+        <strong>{{ conflicts().length }}</strong>
+        <span>On-call conflicts</span>
+      </mat-card>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  <main class="layout">
+    <section class="left-column">
+      <mat-card class="form-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>add_circle</mat-icon>
+          <mat-card-title>Create leave request</mat-card-title>
+          <mat-card-subtitle>
+            New requests are created with Pending status.
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <form
+            #leaveFormDirective="ngForm"
+            [formGroup]="leaveForm"
+            class="leave-form"
+            (ngSubmit)="createLeaveRequest()"
+          >
+            <mat-form-field>
+              <mat-label>Team member</mat-label>
+              <mat-select formControlName="teamMember">
+                @for (member of teamMembers(); track member) {
+                  <mat-option [value]="member">{{ member }}</mat-option>
+                }
+              </mat-select>
+
+              @if (leaveForm.controls.teamMember.hasError('required')) {
+                <mat-error>Team member is required.</mat-error>
+              }
+            </mat-form-field>
+
+            <div class="date-row">
+              <mat-form-field>
+                <mat-label>Start date</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="startDatePicker"
+                  [min]="today"
+                  formControlName="startDate"
+                  placeholder="YYYY-MM-DD"
+                />
+                <mat-datepicker-toggle
+                  matIconSuffix
+                  [for]="startDatePicker"
+                ></mat-datepicker-toggle>
+                <mat-datepicker #startDatePicker></mat-datepicker>
+
+                @if (leaveForm.controls.startDate.hasError('required')) {
+                  <mat-error>Start date is required.</mat-error>
+                }
+
+                @if (leaveForm.controls.startDate.hasError('matDatepickerMin')) {
+                  <mat-error>Start date cannot be in the past.</mat-error>
+                }
+
+                @if (leaveForm.controls.startDate.hasError('matDatepickerParse')) {
+                  <mat-error>Use YYYY-MM-DD format.</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field>
+                <mat-label>End date</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="endDatePicker"
+                  [min]="today"
+                  formControlName="endDate"
+                  placeholder="YYYY-MM-DD"
+                />
+                <mat-datepicker-toggle
+                  matIconSuffix
+                  [for]="endDatePicker"
+                ></mat-datepicker-toggle>
+                <mat-datepicker #endDatePicker></mat-datepicker>
+
+                @if (leaveForm.controls.endDate.hasError('required')) {
+                  <mat-error>End date is required.</mat-error>
+                }
+
+                @if (leaveForm.controls.endDate.hasError('matDatepickerMin')) {
+                  <mat-error>End date cannot be in the past.</mat-error>
+                }
+
+                @if (leaveForm.controls.endDate.hasError('matDatepickerParse')) {
+                  <mat-error>Use YYYY-MM-DD format.</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+            <mat-form-field>
+              <mat-label>Reason</mat-label>
+              <textarea
+                matInput
+                rows="3"
+                formControlName="reason"
+                placeholder="e.g. Summer holiday"
+              ></textarea>
+
+              @if (leaveForm.controls.reason.hasError('required')) {
+                <mat-error>Reason is required.</mat-error>
+              }
+
+              @if (leaveForm.controls.reason.hasError('maxlength')) {
+                <mat-error>Reason cannot be longer than 500 characters.</mat-error>
+              }
+            </mat-form-field>
+
+            <button mat-flat-button color="primary" type="submit">
+              <mat-icon>send</mat-icon>
+              Submit request
+            </button>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="on-call-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>support_agent</mat-icon>
+          <mat-card-title>On-call rotation</mat-card-title>
+          <mat-card-subtitle>
+            Weekly rotation with approved leave conflict detection.
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <form
+            [formGroup]="onCallForm"
+            class="on-call-form"
+            (ngSubmit)="loadOnCallSchedule()"
+          >
+            <mat-form-field>
+              <mat-label>From week</mat-label>
+              <input
+                matInput
+                [matDatepicker]="fromDatePicker"
+                [min]="today"
+                formControlName="from"
+                placeholder="YYYY-MM-DD"
+              />
+              <mat-datepicker-toggle
+                matIconSuffix
+                [for]="fromDatePicker"
+              ></mat-datepicker-toggle>
+              <mat-datepicker #fromDatePicker></mat-datepicker>
+
+              @if (onCallForm.controls.from.hasError('required')) {
+                <mat-error>From date is required.</mat-error>
+              }
+
+              @if (onCallForm.controls.from.hasError('matDatepickerMin')) {
+                <mat-error>From date cannot be in the past.</mat-error>
+              }
+
+              @if (onCallForm.controls.from.hasError('matDatepickerParse')) {
+                <mat-error>Use YYYY-MM-DD format.</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field>
+              <mat-label>Weeks</mat-label>
+              <input
+                matInput
+                type="number"
+                min="1"
+                max="52"
+                formControlName="weeks"
+              />
+
+              @if (onCallForm.controls.weeks.hasError('required')) {
+                <mat-error>Weeks is required.</mat-error>
+              }
+
+              @if (
+                onCallForm.controls.weeks.hasError('min') ||
+                onCallForm.controls.weeks.hasError('max')
+                ) {
+                <mat-error>Weeks must be between 1 and 52.</mat-error>
+              }
+            </mat-form-field>
+
+            <button mat-stroked-button color="primary" type="submit">
+              <mat-icon>refresh</mat-icon>
+              Load
+            </button>
+          </form>
+
+          <div class="table-wrapper">
+            <table mat-table [dataSource]="onCallWeeks()" class="on-call-table">
+              <ng-container matColumnDef="week">
+                <th mat-header-cell *matHeaderCellDef>Week</th>
+                <td mat-cell *matCellDef="let week">
+                  {{ week.weekStart }} - {{ week.weekEnd }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="member">
+                <th mat-header-cell *matHeaderCellDef>On-call</th>
+                <td mat-cell *matCellDef="let week">
+                  <div class="member-cell">
+                    <mat-icon>person</mat-icon>
+                    {{ week.onCallMemberName }}
+                  </div>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let week">
+                  @if (week.conflict) {
+                    <mat-chip
+                      class="conflict-chip"
+                      [matTooltip]="getConflictTooltip(week)"
+                    >
+                      <mat-icon>warning</mat-icon>
+                      Conflict
+                    </mat-chip>
+                  } @else {
+                    <mat-chip class="ok-chip">
+                      <mat-icon>check_circle</mat-icon>
+                      OK
+                    </mat-chip>
+                  }
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="conflicts">
+                <th mat-header-cell *matHeaderCellDef>Conflicting leave</th>
+                <td mat-cell *matCellDef="let week">
+                  @if (week.conflictingLeaveRequests.length > 0) {
+                    <div class="conflict-list">
+                      @for (leave of week.conflictingLeaveRequests; track leave.id) {
+                        <span>
+                          {{ leave.startDate }} - {{ leave.endDate }}
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="muted">None</span>
+                  }
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedOnCallColumns"></tr>
+              <tr
+                mat-row
+                *matRowDef="let row; columns: displayedOnCallColumns"
+                [class.conflict-row]="row.conflict"
+              ></tr>
+            </table>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </section>
+
+    <section class="right-column">
+      <mat-card>
+        <mat-card-header>
+          <mat-icon mat-card-avatar>groups</mat-icon>
+          <mat-card-title>Team members</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="team-list">
+            @for (member of teamMembers(); track member) {
+              <mat-chip>
+                <mat-icon>account_circle</mat-icon>
+                {{ member }}
+              </mat-chip>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="leave-list-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>event_note</mat-icon>
+          <mat-card-title>Leave requests</mat-card-title>
+          <mat-card-subtitle>
+            Review and update request statuses.
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="filter-row">
+            <mat-form-field>
+              <mat-label>Filter by team member</mat-label>
+              <mat-select
+                [value]="selectedTeamMember()"
+                (selectionChange)="changeTeamMemberFilterFromEvent($event)"
+              >
+                <mat-option value="ALL">All</mat-option>
+
+                @for (member of teamMembers(); track member) {
+                  <mat-option [value]="member">{{ member }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <button
+              mat-icon-button
+              matTooltip="Refresh"
+              type="button"
+              (click)="loadLeaveRequests()"
+            >
+              <mat-icon>refresh</mat-icon>
+            </button>
+          </div>
+
+          <div class="table-wrapper">
+            <table mat-table [dataSource]="leaveRequests()" class="leave-table">
+              <ng-container matColumnDef="member">
+                <th mat-header-cell *matHeaderCellDef>Member</th>
+                <td mat-cell *matCellDef="let leave">
+                  <div class="member-cell">
+                    <mat-icon>person</mat-icon>
+                    {{ leave.teamMemberName }}
+                  </div>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="dates">
+                <th mat-header-cell *matHeaderCellDef>Dates</th>
+                <td mat-cell *matCellDef="let leave">
+                  {{ leave.startDate }} - {{ leave.endDate }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="reason">
+                <th mat-header-cell *matHeaderCellDef>Reason</th>
+                <td mat-cell *matCellDef="let leave">
+                  {{ leave.reason }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let leave">
+                  <mat-chip [class]="getStatusClass(leave.status)">
+                    {{ leave.status }}
+                  </mat-chip>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>Actions</th>
+                <td mat-cell *matCellDef="let leave">
+                  <mat-form-field class="status-select">
+                    <mat-label>Status</mat-label>
+                    <mat-select
+                      [value]="leave.status"
+                      (selectionChange)="updateStatusFromEvent(leave, $event)"
+                    >
+                      @for (status of leaveStatuses; track status) {
+                        <mat-option [value]="status">{{ status }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedLeaveColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedLeaveColumns"></tr>
+            </table>
+          </div>
+
+          @if (leaveRequests().length === 0) {
+            <div class="empty-state">
+              <mat-icon>inbox</mat-icon>
+              <p>No leave requests found.</p>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </section>
+  </main>
+</div>
