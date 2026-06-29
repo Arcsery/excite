@@ -63,10 +63,15 @@ export class LeaveCalendarComponent implements OnInit {
   readonly loading = signal(false);
   readonly selectedTeamMember = signal<TeamMemberFilter>('ALL');
 
+  readonly selectedStartDate = signal<Date | null>(null);
+  readonly selectedEndDate = signal<Date | null>(null);
+
+  readonly startDateMax = computed(() => this.selectedEndDate());
+  readonly endDateMin = computed(() => this.selectedStartDate() ?? this.today);
+
   readonly leaveStatuses: LeaveStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 
   readonly displayedLeaveColumns = ['member', 'dates', 'reason', 'status', 'actions'];
-
   readonly displayedOnCallColumns = ['week', 'member', 'status', 'conflicts'];
 
   readonly approvedLeaves = computed(() =>
@@ -96,6 +101,7 @@ export class LeaveCalendarComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.syncDatePickerLimits();
     this.loadInitialData();
   }
 
@@ -194,6 +200,9 @@ export class LeaveCalendarComponent implements OnInit {
             reason: '',
           });
 
+          this.selectedStartDate.set(null);
+          this.selectedEndDate.set(null);
+
           this.leaveForm.markAsPristine();
           this.leaveForm.markAsUntouched();
 
@@ -252,6 +261,16 @@ export class LeaveCalendarComponent implements OnInit {
     }
 
     return `${week.onCallMemberName} has approved leave during this on-call week.`;
+  }
+
+  private syncDatePickerLimits(): void {
+    this.leaveForm.controls.startDate.valueChanges.subscribe((value) => {
+      this.selectedStartDate.set(value);
+    });
+
+    this.leaveForm.controls.endDate.valueChanges.subscribe((value) => {
+      this.selectedEndDate.set(value);
+    });
   }
 
   private toIsoDate(date: Date): string {

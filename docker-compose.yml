@@ -12,5 +12,31 @@ services:
     volumes:
       - leave_calendar_postgres_data:/var/lib/postgresql
 
+  backend:
+    build:
+      context: ./backend
+    container_name: leave-calendar-backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/leave_calendar_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      APP_CORS_ALLOWED_ORIGIN: http://localhost:4200
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: leave-calendar-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "4200:4200"
+
 volumes:
   leave_calendar_postgres_data:

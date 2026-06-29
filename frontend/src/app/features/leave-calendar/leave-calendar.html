@@ -71,13 +71,16 @@
                   matInput
                   [matDatepicker]="startDatePicker"
                   [min]="today"
+                  [max]="startDateMax()"
                   formControlName="startDate"
                   placeholder="YYYY-MM-DD"
                 />
+
                 <mat-datepicker-toggle
                   matIconSuffix
                   [for]="startDatePicker"
                 ></mat-datepicker-toggle>
+
                 <mat-datepicker #startDatePicker></mat-datepicker>
 
                 @if (leaveForm.controls.startDate.hasError('required')) {
@@ -86,6 +89,10 @@
 
                 @if (leaveForm.controls.startDate.hasError('matDatepickerMin')) {
                   <mat-error>Start date cannot be in the past.</mat-error>
+                }
+
+                @if (leaveForm.controls.startDate.hasError('matDatepickerMax')) {
+                  <mat-error>Start date cannot be after end date.</mat-error>
                 }
 
                 @if (leaveForm.controls.startDate.hasError('matDatepickerParse')) {
@@ -98,14 +105,16 @@
                 <input
                   matInput
                   [matDatepicker]="endDatePicker"
-                  [min]="today"
+                  [min]="endDateMin()"
                   formControlName="endDate"
                   placeholder="YYYY-MM-DD"
                 />
+
                 <mat-datepicker-toggle
                   matIconSuffix
                   [for]="endDatePicker"
                 ></mat-datepicker-toggle>
+
                 <mat-datepicker #endDatePicker></mat-datepicker>
 
                 @if (leaveForm.controls.endDate.hasError('required')) {
@@ -113,7 +122,7 @@
                 }
 
                 @if (leaveForm.controls.endDate.hasError('matDatepickerMin')) {
-                  <mat-error>End date cannot be in the past.</mat-error>
+                  <mat-error>End date cannot be before start date or in the past.</mat-error>
                 }
 
                 @if (leaveForm.controls.endDate.hasError('matDatepickerParse')) {
@@ -172,10 +181,12 @@
                 formControlName="from"
                 placeholder="YYYY-MM-DD"
               />
+
               <mat-datepicker-toggle
                 matIconSuffix
                 [for]="fromDatePicker"
               ></mat-datepicker-toggle>
+
               <mat-datepicker #fromDatePicker></mat-datepicker>
 
               @if (onCallForm.controls.from.hasError('required')) {
